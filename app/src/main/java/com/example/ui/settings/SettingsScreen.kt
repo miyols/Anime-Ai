@@ -158,6 +158,62 @@ fun SettingsScreen(
                     }
                 }
             }
+
+            // Anime Voice Style Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val voiceStyle by viewModel.voiceStyle.collectAsStateWithLifecycle()
+                    val availableVoiceStyles by viewModel.availableVoiceStyles.collectAsStateWithLifecycle()
+                    var voiceExpanded by remember { mutableStateOf(false) }
+
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Icon(androidx.compose.material.icons.Icons.Default.SmartToy, contentDescription = "Voice", tint = MaterialTheme.colorScheme.tertiary)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(text = "Real Anime Voice Style", style = MaterialTheme.typography.titleMedium)
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text(
+                        text = "Choose Aiko's voice profile (Japanese Seiyuu locale, High Pitch Kawaii, Tsundere, etc.)",
+                        style = MaterialTheme.typography.bodyMedium
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                    ExposedDropdownMenuBox(
+                        expanded = voiceExpanded,
+                        onExpandedChange = { voiceExpanded = !voiceExpanded }
+                    ) {
+                        OutlinedTextField(
+                            value = voiceStyle,
+                            onValueChange = {},
+                            readOnly = true,
+                            label = { Text("Anime Voice Profile") },
+                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = voiceExpanded) },
+                            modifier = Modifier
+                                .menuAnchor()
+                                .fillMaxWidth()
+                                .testTag("voice_style_dropdown")
+                        )
+                        ExposedDropdownMenu(
+                            expanded = voiceExpanded,
+                            onDismissRequest = { voiceExpanded = false }
+                        ) {
+                            availableVoiceStyles.forEach { style ->
+                                DropdownMenuItem(
+                                    text = { Text(style) },
+                                    onClick = {
+                                        viewModel.setVoiceStyle(style)
+                                        voiceExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 }

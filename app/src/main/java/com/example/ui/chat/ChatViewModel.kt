@@ -56,16 +56,64 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _scanStatus = MutableStateFlow("")
     val scanStatus: StateFlow<String> = _scanStatus.asStateFlow()
 
+    private val _voiceStyle = MutableStateFlow(
+        sharedPreferences.getString("voice_style", "Japanese Seiyuu (JP Locale + Cute Pitch)") ?: "Japanese Seiyuu (JP Locale + Cute Pitch)"
+    )
+    val voiceStyle: StateFlow<String> = _voiceStyle.asStateFlow()
+
+    private val _availableVoiceStyles = MutableStateFlow<List<String>>(
+        listOf(
+            "Japanese Seiyuu (JP Locale + Cute Pitch)",
+            "Super High Pitch Kawaii (~desu!)",
+            "Tsundere Energetic Voice",
+            "Sweet & Soft Anime Voice"
+        )
+    )
+    val availableVoiceStyles: StateFlow<List<String>> = _availableVoiceStyles.asStateFlow()
+
     private var tts: TextToSpeech? = null
     private var isTtsInitialized = false
 
     init {
         tts = TextToSpeech(application) { status ->
             if (status == TextToSpeech.SUCCESS) {
+                isTtsInitialized = true
+                applyVoiceStyle()
+            }
+        }
+    }
+
+    fun setVoiceStyle(style: String) {
+        _voiceStyle.value = style
+        sharedPreferences.edit().putString("voice_style", style).apply()
+        applyVoiceStyle()
+    }
+
+    fun applyVoiceStyle() {
+        if (!isTtsInitialized) return
+        when (_voiceStyle.value) {
+            "Japanese Seiyuu (JP Locale + Cute Pitch)" -> {
+                val res = tts?.setLanguage(Locale.JAPAN)
+                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
+                    tts?.language = Locale.US
+                }
+                tts?.setPitch(1.75f)
+                tts?.setSpeechRate(1.15f)
+            }
+            "Super High Pitch Kawaii (~desu!)" -> {
+                tts?.language = Locale.US
+                tts?.setPitch(1.95f)
+                tts?.setSpeechRate(1.2f)
+            }
+            "Tsundere Energetic Voice" -> {
+                tts?.language = Locale.US
+                tts?.setPitch(1.5f)
+                tts?.setSpeechRate(1.3f)
+            }
+            else -> {
                 tts?.language = Locale.US
                 tts?.setPitch(1.6f)
-                tts?.setSpeechRate(1.1f)
-                isTtsInitialized = true
+                tts?.setSpeechRate(1.05f)
             }
         }
     }
