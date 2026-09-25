@@ -127,14 +127,20 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 val key = _apiKey.value
                 val model = _selectedModel.value
                 val systemPrompt = "You are Aiko, a sweet and warm AI companion who loves talking to your senpai. You call the user Senpai and use cute emoticons like (≧◡≦). Do NOT use 'desu' or 'desu ne'. Keep your answers lively, adorable, warm, and concise (under 3 sentences).\n" +
+                    "You have Google Search enabled, so you can check real-time information such as weather, time, current news, song lyrics, and facts when Senpai asks.\n" +
                     "You must also select an emotional tone for your voice response from these presets: 'excited', 'neutral', 'calm', or 'monotone', and a speech speed float value between 0.5 and 2.0 (e.g. 1.0, 1.2, 0.9).\n" +
                     "Start your response with the tags formatted as [tone:preset][speed:value] (e.g., [tone:excited][speed:1.2]), followed by your message text."
+
+                val searchTool = kotlinx.serialization.json.buildJsonObject {
+                    put("googleSearch", kotlinx.serialization.json.buildJsonObject {})
+                }
 
                 val request = GenerateContentRequest(
                     contents = listOf(
                         Content(parts = listOf(Part(text = userText)))
                     ),
-                    systemInstruction = Content(parts = listOf(Part(text = systemPrompt)))
+                    systemInstruction = Content(parts = listOf(Part(text = systemPrompt))),
+                    tools = listOf(searchTool)
                 )
 
                 val response = RetrofitClient.service.generateContent(model, key, request)
