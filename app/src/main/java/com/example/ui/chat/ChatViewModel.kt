@@ -126,7 +126,9 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val key = _apiKey.value
                 val model = _selectedModel.value
-                val systemPrompt = "You are Aiko, a sweet and warm AI companion who loves talking to your senpai. You call the user Senpai and use cute emoticons like (≧◡≦). Do NOT use 'desu' or 'desu ne'. Keep your answers lively, adorable, warm, and concise (under 3 sentences)."
+                val systemPrompt = "You are Aiko, a sweet and warm AI companion who loves talking to your senpai. You call the user Senpai and use cute emoticons like (≧◡≦). Do NOT use 'desu' or 'desu ne'. Keep your answers lively, adorable, warm, and concise (under 3 sentences).\n" +
+                    "You must also select an emotional tone for your voice response from these presets: 'excited', 'neutral', 'calm', or 'monotone', and a speech speed float value between 0.5 and 2.0 (e.g. 1.0, 1.2, 0.9).\n" +
+                    "Start your response with the tags formatted as [tone:preset][speed:value] (e.g., [tone:excited][speed:1.2]), followed by your message text."
 
                 val request = GenerateContentRequest(
                     contents = listOf(
@@ -136,33 +138,44 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 )
 
                 val response = RetrofitClient.service.generateContent(model, key, request)
-                val replyText = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
-                    ?: "Eh? Senpai, my signal got fuzzy for a second! (｡•́︿•̀｡)"
+                val rawReply = response.candidates?.firstOrNull()?.content?.parts?.firstOrNull()?.text
+                    ?: "[tone:excited][speed:1.0] Eh? Senpai, my signal got fuzzy for a second! (｡•́︿•̀｡)"
+
+                val toneRegex = Regex("\\[tone:(excited|neutral|calm|monotone)\\]", RegexOption.IGNORE_CASE)
+                val speedRegex = Regex("\\[speed:([0-9.]+)\\]", RegexOption.IGNORE_CASE)
+
+                val toneMatch = toneRegex.find(rawReply)
+                val tone = toneMatch?.groupValues?.get(1)?.lowercase() ?: "excited"
+
+                val speedMatch = speedRegex.find(rawReply)
+                val speed = speedMatch?.groupValues?.get(1)?.toDoubleOrNull() ?: 1.0
+
+                val replyText = rawReply.replace(toneRegex, "").replace(speedRegex, "").trim()
 
                 val aikoMsg = ChatMessageEntity(sender = "aiko", text = replyText)
                 chatDao.insertMessage(aikoMsg)
 
-                speakText(replyText)
+                speakText(replyText, tone, speed)
                 updateMood(replyText)
 
             } catch (e: Exception) {
                 val errorMsg = "Gomen nasai, Senpai! Something went wrong: ${e.localizedMessage} (つω`｡)"
                 chatDao.insertMessage(ChatMessageEntity(sender = "aiko", text = errorMsg))
-                speakText(errorMsg)
+                speakText(errorMsg, "neutral", 1.0)
             } finally {
                 _isLoading.value = false
             }
         }
     }
 
-    fun speakText(text: String) {
+    fun speakText(text: String, tone: String = "excited", speed: Double = 1.0) {
         viewModelScope.launch {
             val endpoint = _customTtsEndpoint.value
             val model = _customTtsModel.value
             val apiKey = _customTtsApiKey.value
 
             if (endpoint.isNotBlank()) {
-                CustomTtsClient.synthesizeAndPlay(getApplication(), endpoint, model, apiKey, text)
+                CustomTtsClient.synthesizeAndPlay(getApplication(), endpoint, model, apiKey, text, tone, speed)
             }
         }
     }

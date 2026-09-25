@@ -25,7 +25,9 @@ object CustomTtsClient {
         endpointUrl: String,
         modelName: String,
         apiKey: String,
-        text: String
+        text: String,
+        tone: String = "excited",
+        speed: Double = 1.0
     ) {
         if (endpointUrl.isBlank()) {
             Log.w("CustomTtsClient", "Endpoint URL is blank, skipping custom TTS.")
@@ -47,6 +49,8 @@ object CustomTtsClient {
                 val jsonBody = JSONObject().apply {
                     put("model", modelName.ifBlank { "tsukuyomi" })
                     put("input", cleanText)
+                    put("speed", speed)
+                    put("tone", tone.ifBlank { "excited" })
                 }.toString()
 
                 Log.d("CustomTtsClient", "Sending TTS request to: $endpointUrl with payload: $jsonBody")
