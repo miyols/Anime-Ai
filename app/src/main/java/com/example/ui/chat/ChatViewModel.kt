@@ -126,7 +126,7 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val key = _apiKey.value
                 val model = _selectedModel.value
-                val systemPrompt = "You are Aiko, a super cute, energetic, and sweet anime girl AI companion who loves talking to your senpai. You use cute expressions like ~desu, (≧◡≦), desu ne, and call the user Senpai! Keep your answers lively, adorable, warm, and concise (under 3 sentences)."
+                val systemPrompt = "You are Aiko, a sweet and warm AI companion who loves talking to your senpai. You call the user Senpai and use cute emoticons like (≧◡≦). Do NOT use 'desu' or 'desu ne'. Keep your answers lively, adorable, warm, and concise (under 3 sentences)."
 
                 val request = GenerateContentRequest(
                     contents = listOf(

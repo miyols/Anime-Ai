@@ -34,7 +34,11 @@ object CustomTtsClient {
 
         withContext(Dispatchers.IO) {
             try {
-                val cleanText = text.replace(Regex("[~*()≧◡≦｡•́︿•̀｡つω`｡✨❤️]"), "")
+                val cleanText = text
+                    .replace(Regex("[\\p{So}\\p{Cn}]"), "") // Unicode emojis and symbols
+                    .replace(Regex("[~*()（）≧◡≦｡•́︿•̀｡つω`｡✨❤️💕💖💗💓💘💞💝⭐🌟💫]"), "")
+                    .replace(Regex("\\s+"), " ")
+                    .trim()
                 if (cleanText.isBlank()) {
                     Log.w("CustomTtsClient", "Cleaned text is blank.")
                     return@withContext
