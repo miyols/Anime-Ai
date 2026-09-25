@@ -2,13 +2,13 @@ package com.example.ui.chat
 
 import android.app.Application
 import android.content.Context
-import android.speech.tts.TextToSpeech
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.BuildConfig
 import com.example.data.AppDatabase
 import com.example.data.ChatMessageEntity
 import com.example.network.Content
+import com.example.network.CustomTtsClient
 import com.example.network.GenerateContentRequest
 import com.example.network.Part
 import com.example.network.RetrofitClient
@@ -18,7 +18,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import java.util.Locale
 
 class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val chatDao = AppDatabase.getDatabase(application).chatDao()
@@ -56,67 +55,20 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     private val _scanStatus = MutableStateFlow("")
     val scanStatus: StateFlow<String> = _scanStatus.asStateFlow()
 
-    private val _voiceStyle = MutableStateFlow(
-        sharedPreferences.getString("voice_style", "Japanese Seiyuu (JP Locale + Cute Pitch)") ?: "Japanese Seiyuu (JP Locale + Cute Pitch)"
+    private val _customTtsEndpoint = MutableStateFlow(
+        sharedPreferences.getString("custom_tts_endpoint", "") ?: ""
     )
-    val voiceStyle: StateFlow<String> = _voiceStyle.asStateFlow()
+    val customTtsEndpoint: StateFlow<String> = _customTtsEndpoint.asStateFlow()
 
-    private val _availableVoiceStyles = MutableStateFlow<List<String>>(
-        listOf(
-            "Japanese Seiyuu (JP Locale + Cute Pitch)",
-            "Super High Pitch Kawaii (~desu!)",
-            "Tsundere Energetic Voice",
-            "Sweet & Soft Anime Voice"
-        )
+    private val _customTtsModel = MutableStateFlow(
+        sharedPreferences.getString("custom_tts_model", "tsukuyomi") ?: "tsukuyomi"
     )
-    val availableVoiceStyles: StateFlow<List<String>> = _availableVoiceStyles.asStateFlow()
+    val customTtsModel: StateFlow<String> = _customTtsModel.asStateFlow()
 
-    private var tts: TextToSpeech? = null
-    private var isTtsInitialized = false
-
-    init {
-        tts = TextToSpeech(application) { status ->
-            if (status == TextToSpeech.SUCCESS) {
-                isTtsInitialized = true
-                applyVoiceStyle()
-            }
-        }
-    }
-
-    fun setVoiceStyle(style: String) {
-        _voiceStyle.value = style
-        sharedPreferences.edit().putString("voice_style", style).apply()
-        applyVoiceStyle()
-    }
-
-    fun applyVoiceStyle() {
-        if (!isTtsInitialized) return
-        when (_voiceStyle.value) {
-            "Japanese Seiyuu (JP Locale + Cute Pitch)" -> {
-                val res = tts?.setLanguage(Locale.JAPAN)
-                if (res == TextToSpeech.LANG_MISSING_DATA || res == TextToSpeech.LANG_NOT_SUPPORTED) {
-                    tts?.language = Locale.US
-                }
-                tts?.setPitch(1.75f)
-                tts?.setSpeechRate(1.15f)
-            }
-            "Super High Pitch Kawaii (~desu!)" -> {
-                tts?.language = Locale.US
-                tts?.setPitch(1.95f)
-                tts?.setSpeechRate(1.2f)
-            }
-            "Tsundere Energetic Voice" -> {
-                tts?.language = Locale.US
-                tts?.setPitch(1.5f)
-                tts?.setSpeechRate(1.3f)
-            }
-            else -> {
-                tts?.language = Locale.US
-                tts?.setPitch(1.6f)
-                tts?.setSpeechRate(1.05f)
-            }
-        }
-    }
+    private val _customTtsApiKey = MutableStateFlow(
+        sharedPreferences.getString("custom_tts_api_key", "") ?: ""
+    )
+    val customTtsApiKey: StateFlow<String> = _customTtsApiKey.asStateFlow()
 
     fun setApiKey(key: String) {
         _apiKey.value = key
@@ -126,6 +78,21 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     fun setSelectedModel(model: String) {
         _selectedModel.value = model
         sharedPreferences.edit().putString("selected_model", model).apply()
+    }
+
+    fun setCustomTtsEndpoint(endpoint: String) {
+        _customTtsEndpoint.value = endpoint
+        sharedPreferences.edit().putString("custom_tts_endpoint", endpoint).apply()
+    }
+
+    fun setCustomTtsModel(model: String) {
+        _customTtsModel.value = model
+        sharedPreferences.edit().putString("custom_tts_model", model).apply()
+    }
+
+    fun setCustomTtsApiKey(key: String) {
+        _customTtsApiKey.value = key
+        sharedPreferences.edit().putString("custom_tts_api_key", key).apply()
     }
 
     fun scanModels() {
@@ -189,9 +156,14 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun speakText(text: String) {
-        if (isTtsInitialized) {
-            val cleanText = text.replace(Regex("[~*()≧◡≦｡•́︿•̀｡つω`｡✨❤️]"), "")
-            tts?.speak(cleanText, TextToSpeech.QUEUE_FLUSH, null, null)
+        viewModelScope.launch {
+            val endpoint = _customTtsEndpoint.value
+            val model = _customTtsModel.value
+            val apiKey = _customTtsApiKey.value
+
+            if (endpoint.isNotBlank()) {
+                CustomTtsClient.synthesizeAndPlay(getApplication(), endpoint, model, apiKey, text)
+            }
         }
     }
 
@@ -204,11 +176,5 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             chatDao.clearMessages()
         }
-    }
-
-    override fun onCleared() {
-        tts?.stop()
-        tts?.shutdown()
-        super.onCleared()
     }
 }

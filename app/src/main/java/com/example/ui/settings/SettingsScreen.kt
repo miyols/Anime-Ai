@@ -159,58 +159,74 @@ fun SettingsScreen(
                 }
             }
 
-            // Anime Voice Style Card
+
+
+            // Custom Hosted TTS (OpenAI Compatible) Card
             Card(
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    val voiceStyle by viewModel.voiceStyle.collectAsStateWithLifecycle()
-                    val availableVoiceStyles by viewModel.availableVoiceStyles.collectAsStateWithLifecycle()
-                    var voiceExpanded by remember { mutableStateOf(false) }
+                    val customEndpoint by viewModel.customTtsEndpoint.collectAsStateWithLifecycle()
+                    val customModel by viewModel.customTtsModel.collectAsStateWithLifecycle()
+                    val customTtsApiKey by viewModel.customTtsApiKey.collectAsStateWithLifecycle()
+
+                    var endpointInput by remember { mutableStateOf(customEndpoint) }
+                    var modelInput by remember { mutableStateOf(customModel) }
+                    var apiKeyInput by remember { mutableStateOf(customTtsApiKey) }
 
                     Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(androidx.compose.material.icons.Icons.Default.SmartToy, contentDescription = "Voice", tint = MaterialTheme.colorScheme.tertiary)
+                        Icon(androidx.compose.material.icons.Icons.Default.SmartToy, contentDescription = "Custom TTS", tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Real Anime Voice Style", style = MaterialTheme.typography.titleMedium)
+                        Text(text = "Custom Hosted TTS Endpoint", style = MaterialTheme.typography.titleMedium)
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
-                        text = "Choose Aiko's voice profile (Japanese Seiyuu locale, High Pitch Kawaii, Tsundere, etc.)",
+                        text = "Gemini replies will be sent to your hosted TTS endpoint using payload:\n{\"model\": \"tsukuyomi\", \"input\": \"text\"}",
                         style = MaterialTheme.typography.bodyMedium
                     )
                     Spacer(modifier = Modifier.height(12.dp))
-
-                    ExposedDropdownMenuBox(
-                        expanded = voiceExpanded,
-                        onExpandedChange = { voiceExpanded = !voiceExpanded }
+                    OutlinedTextField(
+                        value = endpointInput,
+                        onValueChange = { endpointInput = it },
+                        label = { Text("TTS Endpoint URL") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("custom_tts_endpoint_input")
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = modelInput,
+                        onValueChange = { modelInput = it },
+                        label = { Text("TTS Model (e.g. tsukuyomi)") },
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("custom_tts_model_input")
+                    )
+                    Spacer(modifier = Modifier.height(8.dp))
+                    OutlinedTextField(
+                        value = apiKeyInput,
+                        onValueChange = { apiKeyInput = it },
+                        label = { Text("TTS API Key / Bearer (Optional)") },
+                        visualTransformation = PasswordVisualTransformation(),
+                        singleLine = true,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .testTag("custom_tts_apikey_input")
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Button(
+                        onClick = {
+                            viewModel.setCustomTtsEndpoint(endpointInput)
+                            viewModel.setCustomTtsModel(modelInput)
+                            viewModel.setCustomTtsApiKey(apiKeyInput)
+                        },
+                        modifier = Modifier.testTag("save_custom_tts_button")
                     ) {
-                        OutlinedTextField(
-                            value = voiceStyle,
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Anime Voice Profile") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = voiceExpanded) },
-                            modifier = Modifier
-                                .menuAnchor()
-                                .fillMaxWidth()
-                                .testTag("voice_style_dropdown")
-                        )
-                        ExposedDropdownMenu(
-                            expanded = voiceExpanded,
-                            onDismissRequest = { voiceExpanded = false }
-                        ) {
-                            availableVoiceStyles.forEach { style ->
-                                DropdownMenuItem(
-                                    text = { Text(style) },
-                                    onClick = {
-                                        viewModel.setVoiceStyle(style)
-                                        voiceExpanded = false
-                                    }
-                                )
-                            }
-                        }
+                        Text("Save Custom TTS Settings")
                     }
                 }
             }
