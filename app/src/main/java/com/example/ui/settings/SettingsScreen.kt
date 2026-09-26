@@ -159,6 +159,36 @@ fun SettingsScreen(
                 }
             }
 
+            // Web Search Grounding Card
+            Card(
+                shape = RoundedCornerShape(16.dp),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.tertiaryContainer),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    val searchEnabled by viewModel.isGoogleSearchEnabled.collectAsStateWithLifecycle()
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(text = "Web Search Grounding", style = MaterialTheme.typography.titleMedium)
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Allow Aiko to research online using Google Search for real-time info. (Disable if your API key tier returns HTTP 429 quota limits).",
+                                style = MaterialTheme.typography.bodyMedium
+                            )
+                        }
+                        Switch(
+                            checked = searchEnabled,
+                            onCheckedChange = { viewModel.setGoogleSearchEnabled(it) },
+                            modifier = Modifier.testTag("google_search_switch")
+                        )
+                    }
+                }
+            }
+
 
 
             // Custom Hosted TTS (OpenAI Compatible) Card

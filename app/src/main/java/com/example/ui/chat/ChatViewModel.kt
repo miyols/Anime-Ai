@@ -70,6 +70,16 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
     )
     val customTtsApiKey: StateFlow<String> = _customTtsApiKey.asStateFlow()
 
+    private val _isGoogleSearchEnabled = MutableStateFlow(
+        sharedPreferences.getBoolean("google_search_enabled", false)
+    )
+    val isGoogleSearchEnabled: StateFlow<Boolean> = _isGoogleSearchEnabled.asStateFlow()
+
+    fun setGoogleSearchEnabled(enabled: Boolean) {
+        _isGoogleSearchEnabled.value = enabled
+        sharedPreferences.edit().putBoolean("google_search_enabled", enabled).apply()
+    }
+
     fun setApiKey(key: String) {
         _apiKey.value = key
         sharedPreferences.edit().putString("api_key", key).apply()
@@ -126,8 +136,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val key = _apiKey.value
                 val model = _selectedModel.value
+                val currentTime = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss z", java.util.Locale.getDefault()).format(java.util.Date())
+                val searchEnabled = _isGoogleSearchEnabled.value
                 val systemPrompt = "You are Aiko, a sweet and warm AI companion who loves talking to your senpai. You call the user Senpai and use cute emoticons like (≧◡≦). Do NOT use 'desu' or 'desu ne'. Keep your answers lively, adorable, warm, and concise (under 3 sentences).\n" +
-                    "You have Google Search enabled, so you can check real-time information such as weather, time, current news, song lyrics, and facts when Senpai asks.\n" +
+                    "Current date and time: $currentTime.\n" +
+                    (if (searchEnabled) "You have web search grounding enabled to help Senpai with research, coding, facts, and live information.\n" else "") +
                     "You must also select an emotional tone for your voice response from these presets: 'excited', 'neutral', 'calm', or 'monotone', and a speech speed float value between 0.5 and 2.0 (e.g. 1.0, 1.2, 0.9).\n" +
                     "Start your response with the tags formatted as [tone:preset][speed:value] (e.g., [tone:excited][speed:1.2]), followed by your message text."
 
@@ -135,12 +148,18 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                     put("googleSearch", kotlinx.serialization.json.buildJsonObject {})
                 }
 
+                val historyMessages = chatDao.getMessagesSync()
+                val contents = historyMessages.takeLast(30).map { msg ->
+                    Content(
+                        role = if (msg.sender == "user") "user" else "model",
+                        parts = listOf(Part(text = msg.text))
+                    )
+                }
+
                 val request = GenerateContentRequest(
-                    contents = listOf(
-                        Content(parts = listOf(Part(text = userText)))
-                    ),
+                    contents = contents,
                     systemInstruction = Content(parts = listOf(Part(text = systemPrompt))),
-                    tools = listOf(searchTool)
+                    tools = if (searchEnabled) listOf(searchTool) else null
                 )
 
                 val response = RetrofitClient.service.generateContent(model, key, request)
@@ -165,7 +184,11 @@ class ChatViewModel(application: Application) : AndroidViewModel(application) {
                 updateMood(replyText)
 
             } catch (e: Exception) {
-                val errorMsg = "Gomen nasai, Senpai! Something went wrong: ${e.localizedMessage} (つω`｡)"
+                val errorMsg = if (e.localizedMessage?.contains("429") == true || e.message?.contains("429") == true) {
+                    "Gomen nasai, Senpai! We hit rate limit (HTTP 429 Too Many Requests). Please wait a moment before trying again! (｡•́︿•̀｡)"
+                } else {
+                    "Gomen nasai, Senpai! Something went wrong: ${e.localizedMessage} (つω`｡)"
+                }
                 chatDao.insertMessage(ChatMessageEntity(sender = "aiko", text = errorMsg))
                 speakText(errorMsg, "neutral", 1.0)
             } finally {

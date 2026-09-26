@@ -23,6 +23,7 @@ data class GenerateContentRequest(
 
 @Serializable
 data class Content(
+    val role: String? = null,
     val parts: List<Part>
 )
 
